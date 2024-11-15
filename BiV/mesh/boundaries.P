@@ -1,0 +1,8 @@
+#lv_endo=3
+#rv_endo=4
+#v_epi=1    % Ventricular epicardium
+#mv=6
+#tv=7
+#av=5
+#pv=2
+

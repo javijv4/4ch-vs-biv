@@ -1,0 +1,8 @@
+#lv_endo=18
+#rv_endo=27
+#v_epi=5    % Ventricular epicardium
+#mv=51
+#tv=52
+#av=28
+#pv=2
+
