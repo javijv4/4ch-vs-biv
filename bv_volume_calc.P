@@ -1,0 +1,117 @@
+% ----  File description  -----------------------------------------------------------------
+% This calculates the chamber volume of a biventricle mesh for the lv and rv
+
+
+% ----    General stuff   -----------------------------------------------------------------
+% This space is use to set general things
+
+#lv_endo = 1                 % TODO: Change this!!
+#rv_endo = 2                 % TODO: Change this!!
+
+#outdir = out             % where the results will be saved.          
+!SetOutputPath={#outdir}  % CH-command to set where the results will be saved
+
+% time scheme
+#st=1
+#et=100
+#dt=0.01
+
+% ----  Solver Groups  -------------------------------------------------------------------
+!DefSolverGroup={SG1|time|lv_vol_calc|rv_vol_calc}
+  !SetSolverGroup={SG1|AddVariables|Disp|DeformSpace|F}
+
+!DefSolverSubGroup={SG1|SOLVER_SEQUENTIAL|lv_vol_calc|rv_vol_calc}
+
+!DefTimeStepScheme={time}   % This defines the time scheme
+  #st  #et  #dt             % start timestep, end timestep, timestep increment
+
+
+% ----  Basis Functions  -----------------------------------------------------------------
+!UseBasis={LinBasis|TETRAHEDRAL_ELEMENT|NODAL_LAGRANGE1|GAUSS_LEGENDRE9}
+
+
+% ----  Topologies  ----------------------------------------------------------------------
+!DefTopology={TP1|mesh/ellipsoid|LinBasis}
+
+
+% --- Variables ------------------------------------------------------
+!DefVariablePointer={Space|TP1|mesh/bv_model|3}  
+!DefVariablePointer={DeformSpace|TP1|3}
+    !SetVariablePointer={DeformSpace | TEMPORAL_UPDATE_EXPR | space_expr | 1}
+!DefVariablePointer={Disp|TP1|3}
+  !SetVariablePointer={Disp | TEMPORAL_UPDATE_FILE | #outdir/Disp* | 1} % This is used to read-in a file
+
+
+% TODO you need to create this
+!DefVariablePointer={N3_LV | null_topology | #meshdir/N3_lv.FE | 3}
+!DefVariablePointer={N3_RV | null_topology | #meshdir/N3_rv.FE | 3}
+
+!DefVariablePointer={Flv|TP1|3}
+  !SetVariablePointer={Flv|INIT_EXPR|operator_lv}
+!DefVariablePointer={Frv|TP1|3}
+  !SetVariablePointer={Frv|INIT_EXPR|operator_rv}
+
+
+% ----  Export Frequency  ----------------------------------------------------------------
+!SetExportFrequency={Space|DeformSpace|Disp|Flv|Frv|-1}
+
+
+% --- Expressions ----------------------------------------------------
+% Expression to update the space
+!DefExpression={space_expr}
+  Space.1 + Disp.1
+  Space.2 + Disp.2
+  Space.3 + Disp.3
+
+% Expression to calculate the volume in this region
+!DefExpression={mat_expr_lv}
+    ( N3_LV.1 * N3_LV.1)
+    ( N3_LV.1 * N3_LV.2)
+    ( N3_LV.1 * N3_LV.3)
+    ( N3_LV.2 * N3_LV.1)
+    ( N3_LV.2 * N3_LV.2)
+    ( N3_LV.2 * N3_LV.3)
+    ( N3_LV.3 * N3_LV.1)
+    ( N3_LV.3 * N3_LV.2)
+    ( N3_LV.3 * N3_LV.3)
+
+!DefExpression={mat_expr_rv}
+    ( N3_RV.1 * N3_RV.1)
+    ( N3_RV.1 * N3_RV.2)
+    ( N3_RV.1 * N3_RV.3)
+    ( N3_RV.2 * N3_RV.1)
+    ( N3_RV.2 * N3_RV.2)
+    ( N3_RV.2 * N3_RV.3)
+    ( N3_RV.3 * N3_RV.1)
+    ( N3_RV.3 * N3_RV.2)
+    ( N3_RV.3 * N3_RV.3)
+
+!DefExpression={operator_lv}
+    lv_mat_expr.1 * space_expr.1 + lv_mat_expr.2 * space_expr.2 + lv_mat_expr.3 * space_expr.3
+    lv_mat_expr.4 * space_expr.1 + lv_mat_expr.5 * space_expr.2 + lv_mat_expr.6 * space_expr.3
+    lv_mat_expr.7 * space_expr.1 + lv_mat_expr.8 * space_expr.2 + lv_mat_expr.9 * space_expr.3
+
+!DefExpression={operator_rv}
+    rv_mat_expr.1 * space_expr.1 + rv_mat_expr.2 * space_expr.2 + rv_mat_expr.3 * space_expr.3
+    rv_mat_expr.4 * space_expr.1 + rv_mat_expr.5 * space_expr.2 + rv_mat_expr.6 * space_expr.3
+    rv_mat_expr.7 * space_expr.1 + rv_mat_expr.8 * space_expr.2 + rv_mat_expr.9 * space_expr.3
+
+
+% --- Problems ----------------------------------------------------
+!DefProblem={lv_vol_calc|norm_calculation}
+  !UseVariablePointer={Space|Space}
+  !Absolute-value
+  !Boundary-conditions-not-required
+  !UseVariablePointer={Term1|Flv}
+  !SetRootTopology={TP1}
+  !Boundary-normal={#lv_endo}
+  !Output-filename={volume_lv.norm}
+
+!DefProblem={rv_vol_calc|norm_calculation}
+  !UseVariablePointer={Space|Space}
+  !Absolute-value
+  !Boundary-conditions-not-required
+  !UseVariablePointer={Term1|Frv}
+  !SetRootTopology={TP1}
+  !Boundary-normal={#rv_endo|#rv_septum}
+  !Output-filename={volume_rv.norm}
