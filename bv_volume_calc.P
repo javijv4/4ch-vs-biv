@@ -5,8 +5,9 @@
 % ----    General stuff   -----------------------------------------------------------------
 % This space is use to set general things
 
-#lv_endo = 1                 % TODO: Change this!!
-#rv_endo = 2                 % TODO: Change this!!
+#lv_endo = 3                 % TODO: Change this!!
+#rv_endo = 4                 % TODO: Change this!!
+#rv_sep = 5                  % TODO: Change this!!
 
 #outdir = out             % where the results will be saved.          
 !SetOutputPath={#outdir}  % CH-command to set where the results will be saved
@@ -18,7 +19,7 @@
 
 % ----  Solver Groups  -------------------------------------------------------------------
 !DefSolverGroup={SG1|time|lv_vol_calc|rv_vol_calc}
-  !SetSolverGroup={SG1|AddVariables|Disp|DeformSpace|F}
+  !SetSolverGroup={SG1|AddVariables|Disp|DeformSpace}
 
 !DefSolverSubGroup={SG1|SOLVER_SEQUENTIAL|lv_vol_calc|rv_vol_calc}
 
@@ -31,7 +32,7 @@
 
 
 % ----  Topologies  ----------------------------------------------------------------------
-!DefTopology={TP1|mesh/ellipsoid|LinBasis}
+!DefTopology={TP1|mesh/bv_model|LinBasis}
 
 
 % --- Variables ------------------------------------------------------
@@ -43,17 +44,12 @@
 
 
 % TODO you need to create this
-!DefVariablePointer={N3_LV | null_topology | #meshdir/N3_lv.FE | 3}
-!DefVariablePointer={N3_RV | null_topology | #meshdir/N3_rv.FE | 3}
-
-!DefVariablePointer={Flv|TP1|3}
-  !SetVariablePointer={Flv|INIT_EXPR|operator_lv}
-!DefVariablePointer={Frv|TP1|3}
-  !SetVariablePointer={Frv|INIT_EXPR|operator_rv}
+!DefVariablePointer={N3_LV | null_topology | mesh/N3_lv.FE | 3}
+!DefVariablePointer={N3_RV | null_topology | mesh/N3_rv.FE | 3}
 
 
 % ----  Export Frequency  ----------------------------------------------------------------
-!SetExportFrequency={Space|DeformSpace|Disp|Flv|Frv|-1}
+!SetExportFrequency={Space|DeformSpace|Disp|-1}
 
 
 % --- Expressions ----------------------------------------------------
@@ -64,7 +60,7 @@
   Space.3 + Disp.3
 
 % Expression to calculate the volume in this region
-!DefExpression={mat_expr_lv}
+!DefExpression={lv_mat_expr}
     ( N3_LV.1 * N3_LV.1)
     ( N3_LV.1 * N3_LV.2)
     ( N3_LV.1 * N3_LV.3)
@@ -75,7 +71,7 @@
     ( N3_LV.3 * N3_LV.2)
     ( N3_LV.3 * N3_LV.3)
 
-!DefExpression={mat_expr_rv}
+!DefExpression={rv_mat_expr}
     ( N3_RV.1 * N3_RV.1)
     ( N3_RV.1 * N3_RV.2)
     ( N3_RV.1 * N3_RV.3)
@@ -99,19 +95,19 @@
 
 % --- Problems ----------------------------------------------------
 !DefProblem={lv_vol_calc|norm_calculation}
-  !UseVariablePointer={Space|Space}
+  !UseVariablePointer={Space|DeformSpace}
   !Absolute-value
   !Boundary-conditions-not-required
-  !UseVariablePointer={Term1|Flv}
+  !UseVariablePointer={Term1|operator_lv}
   !SetRootTopology={TP1}
   !Boundary-normal={#lv_endo}
   !Output-filename={volume_lv.norm}
 
 !DefProblem={rv_vol_calc|norm_calculation}
-  !UseVariablePointer={Space|Space}
+  !UseVariablePointer={Space|DeformSpace}
   !Absolute-value
   !Boundary-conditions-not-required
-  !UseVariablePointer={Term1|Frv}
+  !UseVariablePointer={Term1|operator_rv}
   !SetRootTopology={TP1}
-  !Boundary-normal={#rv_endo|#rv_septum}
+  !Boundary-normal={#rv_endo|#rv_sep}
   !Output-filename={volume_rv.norm}
