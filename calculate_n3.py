@@ -17,12 +17,12 @@ def get_normal_plane_svd(points):   # Find the plane that minimizes the distance
     return normal, centroid
 
 # User inputs. TODO: you need to change it depending on the mesh
-mesh_fldr = 'BiV/mesh/'
+mesh_fldr = 'BiV/bv2/mesh/'
 model_name = 'bv_model'
-mv_patch = 1
-av_patch = 2
-tv_patch = 3
-pv_patch = 4
+mv_patch = 9
+av_patch = 6
+tv_patch = 7
+pv_patch = 8
 
 # Load meshes and boundary data
 mesh = chio.read_mesh(mesh_fldr + model_name, meshio=True)
@@ -53,5 +53,5 @@ n3 = np.cross(tv_normal, pv_normal)
 rv_n3 = n3/np.linalg.norm(n3)
 
 # Save to mesh folder
-chio.write_dfile(mesh_fldr + 'N3_lv.FE', lv_n3)
-chio.write_dfile(mesh_fldr + 'N3_rv.FE', rv_n3)
+chio.write_dfile(mesh_fldr + 'N3_lv.FE', lv_n3[None])
+chio.write_dfile(mesh_fldr + 'N3_rv.FE', rv_n3[None])
