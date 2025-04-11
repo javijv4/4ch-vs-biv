@@ -1,0 +1,81 @@
+% --- Topology -------------------------------------------------------
+!DefTopology={TP1_aorta | #meshdir/aortic | LinSurfBasis}
+  !SetTopology={TP1_aorta | CreateInBoundary | [TP1;#aorta_boundary]}
+
+!DefTopology={TP1_pulmonary | #meshdir/pulmonary | LinSurfBasis}
+  !SetTopology={TP1_pulmonary | CreateInBoundary | [TP1;#pv]}
+
+
+% -- Interfaces -----------------------------------------------------
+!DefInterface={ManyToOne|TP1_aorta|TP1|#meshdir/aortic-bvmodel.IN|NestedInBoundary[#av]}
+!DefInterface={ManyToOne|TP1_pulmonary|TP1|#meshdir/pulmonary-bvmodel.IN|NestedInBoundary[#pv]}
+
+
+% --- Variables ------------------------------------------------------
+!DefVariablePointer={AVnormal | null_topology | 3}
+!DefVariablePointer={PVnormal | null_topology | 3}
+
+!DefVariablePointer={Uav    | null_topology | #initdir/Uav-100.D | 3}
+!DefVariablePointer={Upv    | null_topology | #initdir/Upv-100.D |3}
+
+!DefVariablePointer={LMav   | TP1_aorta | #initdir/LMav-100.D |3}
+!DefVariablePointer={LMpv   | TP1_pulmonary | #initdir/LMpv-100.D | 3}
+
+
+% --- Expressions ----------------------------------------------------
+!DefExpression={AVmat}
+    1 - AVnormal.1 * AVnormal.1 
+    0 - AVnormal.1 * AVnormal.2 
+    0 - AVnormal.1 * AVnormal.3 
+    0 - AVnormal.2 * AVnormal.1 
+    1 - AVnormal.2 * AVnormal.2 
+    0 - AVnormal.2 * AVnormal.3 
+    0 - AVnormal.3 * AVnormal.1 
+    0 - AVnormal.3 * AVnormal.2 
+    1 - AVnormal.3 * AVnormal.3 
+
+
+!DefExpression={PVmat}
+    1 - PVnormal.1 * PVnormal.1 
+    0 - PVnormal.1 * PVnormal.2 
+    0 - PVnormal.1 * PVnormal.3 
+    0 - PVnormal.2 * PVnormal.1 
+    1 - PVnormal.2 * PVnormal.2 
+    0 - PVnormal.2 * PVnormal.3 
+    0 - PVnormal.3 * PVnormal.1 
+    0 - PVnormal.3 * PVnormal.2 
+    1 - PVnormal.3 * PVnormal.3 
+
+
+%  ---  Centroid Problem Definition  -------------------------------------------
+!DefProblem={LMAVCent|fscoupling_problem}
+   !UseVariablePointer={Space|Space}
+   !AddTerms={TestVariable[Disp]| Uav[0]}
+   !Addterms={TestVariable[Uav*] | Disp  Uav[-1]  }
+   !Boundary-conditions-not-required
+   !SetRootTopology={TP1_aorta}
+
+!DefProblem={LMPVCent|fscoupling_problem}
+   !UseVariablePointer={Space|Space}
+   !AddTerms={TestVariable[Disp]| Upv[0]}
+   !Addterms={TestVariable[Upv*] | Disp  Upv[-1]  }
+   !Boundary-conditions-not-required
+   !SetRootTopology={TP1_pulmonary}
+
+
+%  ---  Displacement Constraint Problem Definition  -------------------------------------------
+!DefProblem={LMAVDisp|fscoupling_problem}
+   !UseVariablePointer={Space|Space}
+   !Addterms={TestVariable[Uav]   | Uav[0] } 
+   !AddTerms={TestVariable[Disp]| | LMav}
+   !Addterms={TestVariable[LMav*] | Disp[AVmat]  Uav[-1]  }
+   !Boundary-conditions-not-required
+   !SetRootTopology={TP1_aorta}
+
+!DefProblem={LMPVDisp|fscoupling_problem}
+   !UseVariablePointer={Space|Space}
+   !Addterms={TestVariable[Upv]   | Upv[0] } 
+   !AddTerms={TestVariable[Disp]| | LMpv}
+   !Addterms={TestVariable[LMpv*] | Disp[PVmat]  Upv[-1]  }
+   !Boundary-conditions-not-required
+   !SetRootTopology={TP1_pulmonary}
