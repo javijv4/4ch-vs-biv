@@ -1,0 +1,206 @@
+
+#meshdir = mesh
+#datadir = data
+#initdir = init3
+#outdir = out3
+!SetOutputPath={#outdir}
+
+#st=1
+#et=1000
+#dt=0.001
+
+#exportrate = 1
+
+#iso_act = 1/3
+
+!include={mesh/boundaries.P}
+!include={optimized_params.P}
+
+
+% --- Solver Definition ----------------------------------------------
+!DefSolverGroup={SG1|TimeStepping|Matrix}
+  !DefSolverSubGroup={SG1|SEQ_FP_LINESEARCH|Matrix|ScaleFirstResidual[1000]}
+  !SetSolverGroup={SG1|L2TOL|1e-8}
+  !SetSolverGroup={SG1|ITERATION|30}
+  !SetSolverGroup={SG1|LINESEARCHITER|5} 
+  !SetSolverGroup={SG1|AddVariables|LV_Pres|RV_Pres|LA_Pres|RA_Pres|AORTA_Pres|actPar_LV|actPar_RV} 
+  !SetSolverGroup={SG1|CatchSolverErrors|nan_maxval|evaluate_full|1.0e10}
+  !SetSolverGroup={SG1|export_initial_condition}
+
+!DefSolverMatrix={Matrix|SOLVER_MUMPS|solid|lvendo|rvendo}
+  !SetSolverMatrix={Matrix |ordering      |parallel}
+  !SetSolverMatrix={Matrix | SolverMatrixCalculation | evaluate_every_build}
+
+!DefTimeStepScheme={TimeStepping}
+   #st   #et   #dt
+
+
+% --- Basis function definition --------------------------------------
+!UseBasis={LinBasis|TETRAHEDRAL_ELEMENT|NODAL_LAGRANGE1|KEAST_LYNESS6}
+!UseBasis={ConstBasis|TETRAHEDRAL_ELEMENT|NODAL_LAGRANGE0|KEAST_LYNESS6}
+
+
+% --- Topology -------------------------------------------------------
+!DefTopology={TP0 | #meshdir/4ch_model_const | ConstBasis}
+  !SetTopology={TP0 | MakeDiscontinuous}
+!DefTopology={TP1 | #meshdir/4ch_model | LinBasis}
+!DefTopology={TPfibers | #meshdir/fiber | LinBasis}
+
+
+% --- Interfaces -----------------------------------------------------
+!DefInterface={OneToOne|TP1|TP0|TPfibers}
+
+
+% --- Variables ------------------------------------------------------
+!DefVariablePointer={Space| TP1 | #meshdir/4ch_model | 3}
+!DefVariablePointer={Disp| TP1 | #initdir/Disp-100.D | 3}
+!DefVariablePointer={Pres| TP1 | #initdir/Pres-100.D | 1}
+!DefVariablePointer={Fibers| TPfibers | #datadir/fiber.field|9}
+!DefVariablePointer={regions | TP0 | #meshdir/regions.FE | 1}
+!DefVariablePointer={long | TP1 | #datadir/long_plane.FE | 1}
+!DefVariablePointer={rvlv | TP1 | #datadir/rvlv.FE | 1}
+
+% Activations
+!DefVariablePointer={actPar_LV | null_topology | 1}
+!DefVariablePointer={actPar_RV | null_topology | 1}
+
+% Pressure data pointers
+!DefDataPointer={LV_LMData | #datadir/lv_pressure.INIT | 1 }
+!DefDataPointer={RV_LMData | #datadir/rv_pressure.INIT | 1 }
+!DefDataPointer={LA_LMData | #datadir/la_pressure.INIT | 1 }
+!DefDataPointer={RA_LMData | #datadir/ra_pressure.INIT | 1 }
+!DefDataPointer={AORTA_LMData | #datadir/aorta_pressure.INIT | 1 }
+!DefDataPointer={ATRIA_actData | #datadir/norm_atrial_act.INIT| 1 }
+
+% Pressure
+!DefVariablePointer={LV_Pres| null_topology | 1}
+  !SetVariablePointer={LV_Pres | temporal_update_expr | lv_lm_expr | 1}
+!DefVariablePointer={RV_Pres| null_topology | 1}
+  !SetVariablePointer={RV_Pres | temporal_update_expr | rv_lm_expr | 1}
+!DefVariablePointer={LA_Pres| null_topology | 1}
+  !SetVariablePointer={LA_Pres | temporal_update_expr | la_lm_expr | 1}
+!DefVariablePointer={RA_Pres| null_topology | 1}
+  !SetVariablePointer={RA_Pres | temporal_update_expr | ra_lm_expr | 1}
+!DefVariablePointer={AORTA_Pres| null_topology | 1}
+  !SetVariablePointer={AORTA_Pres | temporal_update_expr | aorta_lm_expr | 1}
+  
+
+% --- Other ------------------------------------------------------------
+!SetExportFrequency={Disp|Pres|#exportrate}
+!SetExportFrequency={LV_Pres|RV_Pres|LA_Pres|RA_Pres|AORTA_pres|1}
+!SetExportFrequency={Space|Fibers|regions|-1}
+
+
+% --- Expressions ------------------------------------------------------
+% Pressures
+!DefExpression={phi}
+  1 - (regions - 1)
+
+!DefExpression={lv_lm_expr}
+  -1*interp(LV_LMData,t)
+
+!DefExpression={rv_lm_expr}
+  -1*interp(RV_LMData,t)
+
+!DefExpression={la_lm_expr}
+  -1*interp(LA_LMData,t)
+
+!DefExpression={ra_lm_expr}
+  -1*interp(RA_LMData,t)
+
+!DefExpression={aorta_lm_expr}
+  -1*interp(AORTA_LMData,t)
+
+!DefExpression={norm_atria_expr}
+  interp(ATRIA_actData,t)
+  
+
+% Material Parameters
+!DefExpression={passive_scale_expr}
+  #par_LV * phi + #par_RV * (1 - phi) + 1 
+
+!DefExpression={bv_mat_params_expr}
+  10.0200 *  #kb                          % b1
+  1.1580  *  #kb                          % b2
+  1.64    *  #k  *  passive_scale_expr    % bff
+  0.897   *  #k  *  passive_scale_expr    % bss
+  0.409   *  #k  *  passive_scale_expr    % bnn
+  6.175   *  #k  *  passive_scale_expr    % bfs
+  3.52    *  #k  *  passive_scale_expr    % bfn
+  2.895   *  #k  *  passive_scale_expr    % bns
+
+!DefExpression={mat_params_bv_expr}
+  bv_mat_params_expr.1
+  bv_mat_params_expr.2
+  bv_mat_params_expr.3  * (Regions < 2.5)
+  bv_mat_params_expr.4  * (Regions < 2.5)
+  bv_mat_params_expr.5  * (Regions < 2.5)
+  bv_mat_params_expr.6  * (Regions < 2.5)
+  bv_mat_params_expr.7  * (Regions < 2.5)
+  bv_mat_params_expr.8  * (Regions < 2.5)
+
+!DefExpression={mat_params_atria_expr}
+  40 * (Regions > 2.5) * (Regions < 4.5) 
+
+!DefExpression={mat_params_aorta_expr}
+  150 * (Regions > 4.5)
+  5
+
+!DefExpression={active_expr}
+  ((actPar_LV * phi + actPar_RV * (1 - phi)) * #iso_act) * (Regions < 2.5)
+  ((actPar_LV * phi + actPar_RV * (1 - phi))) * (Regions < 2.5) 
+
+!DefExpression={active_expr_atria}
+  (50 * norm_atria_expr * (Regions > 2.5) * (Regions < 3.5)) + (30 * norm_atria_expr * (Regions > 3.5) * (Regions < 4.5))
+
+!DefExpression={incompressibility_expr}
+    10000 * (Regions > 4.5) + 100 * (Regions < 4.5)
+    10000 * (Regions > 4.5) + 100 * (Regions < 4.5)
+
+!DefExpression={epi_spring_expr}
+    1.0*(tanh(-(long-0.05)*10)+1)/2*rvlv
+    
+
+%  ---  Problem Definition  --------------------------------------------
+!DefProblem={solid|STEADY_QUASI_STATIC_ELASTICITY}
+  !UseVariablePointer={Space|Space}
+  !UseVariablePointer={Displacement|Disp}
+  !UseVariablePointer={Pressure|Pres}
+  !UseVariablePointer={Fibers|Fibers}
+  !Add-state-variables={ActPar_LV | ActPar_RV}
+  !SetRootTopology={TP1}
+
+
+% --- Active/passive laws ---------------------------------------------
+!ConstitutiveLaw={doubleE}
+    mat_params_bv_expr
+!ConstitutiveLaw={neohookean}
+    mat_params_atria_expr
+!ConstitutiveLaw={isotropic-exponential}
+    mat_params_aorta_expr                               % Material parameter
+!Nearly-incompressible                            % Another type of material
+    incompressibility_expr
+!ConstitutiveLaw={active-func-iso-fiber-length-dep-quad}
+    active_expr
+!ConstitutiveLaw={active-func-inplane-length-dep}
+    active_expr_atria 
+  
+    
+  % --- Boundary conditions --------------------------------------------
+  !Boundary-patch-definitions
+    #lv_endo  Disp     scaled_normal  lv_lm_expr
+    #rv_endo  Disp     scaled_normal  rv_lm_expr
+    #rv_septum Disp     scaled_normal  rv_lm_expr
+    #la_endo  Disp     scaled_normal  la_lm_expr
+    #ra_endo  Disp     scaled_normal  ra_lm_expr
+    #aorta_endo  Disp     scaled_normal  aorta_lm_expr
+    #av          Disp   Hookes      1. 1. 1.
+    #mv          Disp   Hookes      1. 1. 1.
+    #tv          Disp   Hookes      1. 1. 1.
+    #pv           Disp  Hookes        10.0 10.0 10.0
+    #lv_epi       Disp  hookes_normal    epi_spring_expr
+    #rv_epi       Disp  hookes_normal    epi_spring_expr
+
+
+%  ---  Include Problems   --------------------------------------------
+!include={problem_volume_active.P}

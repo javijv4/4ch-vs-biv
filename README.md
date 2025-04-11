@@ -1,2 +1,2 @@
-# 4ch-vs-biv
-CHeart problems to compare BV and 4CH simulations
+# 4CH vs BV
+CH codes to run 4CH anv BV simulations
